@@ -93,4 +93,49 @@ more=function(){shell('SOP 與系統設定',`<div class="panel"><p>ALSO SPA 2.1<
 cloudDraft=function(){const box=document.createElement('div');box.className='status';box.textContent=previewMode?'已儲存此裝置預覽紀錄；尚未存入雲端。':'此項目尚待串接正式後端。';$('app').appendChild(box)};
 loginPage();
 </script>
+
+<!-- ALSO SPA Google booking integration, 2026-10-29 -->
+<script>
+// Booking integration is independent of the legacy demonstration login.
+// The deployed Google application always authenticates booking administrators itself.
+(function(){
+  'use strict';
+  const DEFAULT_BOOKING_APP_URL = '';
+  const URL_KEY='also-spa-booking-app-url';
+  const bookingUrl=()=>{try{return localStorage.getItem(URL_KEY)||DEFAULT_BOOKING_APP_URL;}catch(e){return DEFAULT_BOOKING_APP_URL;}};
+  function validUrl(value){return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(value);}
+  function appUrl(admin){const value=bookingUrl();if(!validUrl(value))return '';return value+(admin?'?mode=admin':'');}
+  window.bookingConnectPage=function(){
+    const value=bookingUrl(),connected=validUrl(value);
+    const body=`<div class="panel"><span class="chip">GOOGLE CALENDAR</span><h3>預約管理工作台</h3><p>客戶提出需求 → 店家安排芳療師並確認 → 寫入 Google 行事曆。</p><p class="muted">支援 1～2 人分別選課、時段衝突檢查、改期與取消。預約工作台使用獨立的管理密碼。</p>${connected?`<a class="primary" style="display:block;text-align:center;text-decoration:none" href="${esc(appUrl(true))}" target="_blank" rel="noopener">開啟預約管理工作台 →</a><a class="outline" style="display:block;text-align:center;text-decoration:none;margin-top:12px" href="${esc(appUrl(false))}" target="_blank" rel="noopener">開啟客戶預約頁 →</a><p class="small muted">工作台網址已設定。請登入工作台確認 Google 授權、芳療師與開放預約設定。</p>`:'<div class="notice">尚未設定工作台網址。請先完成 Google 預約程式部署，系統目前尚未連上行事曆。</div>'}</div><div class="panel"><h3>連接預約工作台</h3><label for="booking-app-url">Google 部署網址</label><input id="booking-app-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(value)}" autocomplete="off"><button class="primary" onclick="saveBookingAppUrl()">儲存工作台網址</button><div id="booking-connect-status" role="status"></div><p class="small muted">網址設定會保留在這部裝置。其他裝置首次使用時，貼上同一個網址即可。請把「客戶預約頁」網址放到官方 LINE 或官網。</p></div><div class="panel"><h3>安排方式</h3><p>需求送出後為「待確認」，不占用行事曆。店家確認時，系統會再次檢查芳療師時段。</p><p>改期、換芳療師與取消，請在預約工作台操作；Google 行事曆的手動修改不會回寫。</p></div>`;
+    if(currentUser)shell('客戶預約與行事曆',body);
+    else{$('app').innerHTML='<header class="hero"><div class="eyebrow">BODY · MIND · SOUL</div><h1>ALSO SPA</h1><p class="muted">預約管理</p></header><button class="back" onclick="loginPage()">← 返回管理中心</button><h2>客戶預約與行事曆</h2>'+body;$('nav').innerHTML='';}
+  };
+  window.saveBookingAppUrl=function(){
+    const value=$('booking-app-url').value.trim(),status=$('booking-connect-status');
+    if(!validUrl(value)){status.textContent='請貼上以 https://script.google.com/macros/s/ 開頭、/exec 結尾的正式部署網址。';return;}
+    try{localStorage.setItem(URL_KEY,value);bookingConnectPage();$('booking-connect-status').textContent='工作台網址已儲存，請開啟工作台完成設定。';}catch(e){status.textContent='此瀏覽器無法保存設定，請改用 Safari 或 Chrome 開啟。';}
+  };
+  function loginEntry(){
+    const panel=document.createElement('section');panel.className='panel';panel.id='booking-entry';
+    panel.innerHTML='<span class="chip">新增功能</span><h3>客戶預約與 Google 行事曆</h3><p class="muted">在獨立預約工作台安排客戶、芳療師與時段。</p><button class="primary" onclick="go(\'appointments\')">開啟預約功能 →</button>';
+    $('booking-entry')?.remove();$('app').appendChild(panel);
+  }
+  const previousLogin=loginPage;
+  loginPage=function(){previousLogin();loginEntry();};
+  const previousRender=render;
+  render=function(){
+    if(page==='appointments')return bookingConnectPage();
+    previousRender();
+    if(page==='home'){
+      const grid=$('app').querySelector('.grid');
+      if(grid&&!$('home-bookings'))grid.insertAdjacentHTML('afterbegin','<button id="home-bookings" class="tile" onclick="go(\'appointments\')"><span>▦</span><b>客戶預約</b><small class="muted">預約工作台 · Google 行事曆 →</small></button>');
+    }
+  };
+  if(new URLSearchParams(location.search).get('booking')==='1')go('appointments');
+  else if(!currentUser)loginPage();else render();
+})();
+
+</script>
 </body></html>
+
